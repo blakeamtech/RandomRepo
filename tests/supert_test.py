@@ -3,7 +3,8 @@ from openai import OpenAI
 from api.services.inference_service import InferenceService
 from api.core.config import settings
 import json
-import random
+import csv
+from datetime import datetime
 
 class RandomPromptGenerator:
     """
@@ -124,7 +125,7 @@ class LLMJudge:
 
 class InferenceQualityTester:
     """
-    Tests the quality of the inference service output using the LLM Judge.
+    Tests the quality of the inference service output using the LLM Judge and outputs results to a CSV file.
     """
     def __init__(self, auth_key):
         self.inference_service = InferenceService(auth_key)
@@ -133,7 +134,7 @@ class InferenceQualityTester:
 
     def run_test(self, num_tests=10):
         """
-        Run a series of tests to evaluate the quality of generated text.
+        Run a series of tests to evaluate the quality of generated text and output results to a CSV file.
         
         Args:
             num_tests (int): The number of tests to run. Defaults to 10.
@@ -142,12 +143,22 @@ class InferenceQualityTester:
             float: The average score across all tests.
         """
         total_score = 0
+        results = []
+
         for i in range(num_tests):
             prompt = self.prompt_generator.generate_prompt()
             generated_text = self.inference_service.generate_text(prompt)
             evaluation = self.llm_judge.evaluate_text(prompt, generated_text)
             score = evaluation['score']
             total_score += score
+
+            results.append({
+                'prompt': prompt,
+                'model_response': generated_text,
+                'model_rating': score,
+                'model_reasoning': evaluation['reasoning']
+            })
+
             print(f"Test {i+1}:")
             print(f"Prompt: {prompt}")
             print(f"Generated text: {generated_text}")
@@ -156,6 +167,20 @@ class InferenceQualityTester:
 
         average_score = total_score / num_tests
         print(f"Average score: {average_score:.2f}/10")
+
+        # Write results to CSV
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"inference_quality_results_{timestamp}.csv"
+        with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+            fieldnames = ['prompt', 'model_response', 'model_rating', 'model_reasoning']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            
+            writer.writeheader()
+            for result in results:
+                writer.writerow(result)
+
+        print(f"Results have been written to {filename}")
+
         return average_score
 
 if __name__ == "__main__":
