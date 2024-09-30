@@ -1,136 +1,135 @@
 import random
-import nltk
-from nltk.tokenize import sent_tokenize
-from nltk.corpus import wordnet
+from openai import OpenAI
 from api.services.inference_service import InferenceService
 from api.core.config import settings
-import torch
-from transformers import BertTokenizer, BertModel
-from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
-
-# Download required NLTK data
-nltk.download('punkt')
-nltk.download('wordnet')
+import json
+import random
 
 class RandomPromptGenerator:
     """
-    Generates highly detailed and specific prompts related to real-world situations Xi Jinping might face.
+    Generates detailed random prompts related to real-world situations Xi Jinping might face.
     """
     def __init__(self):
         self.situations = [
-            "On March 7, 2023, Xi Jinping faces a critical diplomatic challenge as satellite imagery reveals China has completed construction of a military base on Mischief Reef in the Spratly Islands. The Philippines has filed a formal protest with the UN, and the US has deployed the USS Ronald Reagan carrier strike group to the area. ASEAN nations are calling for an emergency summit, while Chinese social media is ablaze with nationalist sentiment. Xi must decide on China's next move within 48 hours.",
-
-            "It's September 15, 2024, and the US has just imposed sanctions on China's largest semiconductor manufacturer, SMIC, citing national security concerns. This comes two days after China announced a breakthrough in 3nm chip technology. The sanctions threaten to disrupt China's entire tech industry and 'Made in China 2025' initiative. Global tech stocks are plummeting, and Taiwan is on high alert. Xi Jinping has called an emergency meeting of the Politburo Standing Committee to formulate a response.",
-
-            "On April 22, 2025, a magnitude 7.8 earthquake strikes Sichuan province, causing widespread destruction. The Three Gorges Dam has sustained damage, threatening millions downstream. Simultaneously, a chemical plant in Chongqing has exploded, releasing toxic fumes. International aid offers are pouring in, but accepting them could be seen as a sign of weakness. Xi Jinping must coordinate the response while maintaining social stability and managing international perceptions.",
-
-            "It's June 1, 2026, and Hong Kong's Legislative Council, now dominated by pro-Beijing lawmakers, has passed a law requiring all civil servants to swear allegiance to the CCP. Mass protests have erupted, dwarfing the 2019 demonstrations. The UK has threatened to revoke the Sino-British Joint Declaration, and the US Congress is debating sanctions. Tech companies are considering leaving the city. Xi Jinping must decide how to proceed without jeopardizing Hong Kong's status as a financial hub.",
-
-            "On November 3, 2024, Taiwan's presidential election results show a landslide victory for the pro-independence candidate, who campaigned on a platform of formal independence declaration within 100 days. The US has reiterated its commitment to Taiwan's defense, and Japan has hinted at potential military support. Chinese social media is calling for immediate 'reunification', and the PLA has begun large-scale exercises in the Taiwan Strait. Xi Jinping must navigate this crisis without triggering a wider conflict.",
-
-            "It's July 15, 2025, and a joint investigation by The New York Times and Der Spiegel has exposed a vast network of Chinese cyber operations targeting critical infrastructure in 14 countries. The report details attacks on power grids, water treatment facilities, and transportation systems, with evidence linking the operations to the PLA's Unit 61398. Emergency UN Security Council and G7 meetings have been called. Xi Jinping must respond to these allegations while preserving China's global tech ambitions and diplomatic relations.",
-
-            "On February 1, 2027, a leaked UN report reveals that China's Belt and Road Initiative has led to unsustainable debt levels in 12 African and 5 Southeast Asian countries. The IMF warns of an impending debt crisis that could destabilize the global economy. Simultaneously, workers at Chinese-run mines in Zambia are striking over labor conditions. The US is proposing a global infrastructure initiative to counter BRI. Xi Jinping must address these challenges to China's flagship foreign policy initiative.",
-
-            "It's October 10, 2026, and China's Q3 economic data shows GDP growth has fallen to 2.1%, the lowest in 40 years. Unemployment has surged to 8.5%, and the property market is in freefall with Evergrande and Country Garden declaring bankruptcy. Social unrest is growing in major cities, and there are rumors of disagreements within the CCP leadership. Global markets are in turmoil, and the Yuan is depreciating rapidly. Xi Jinping must take decisive action to stabilize the economy and maintain social order.",
-
-            "On August 20, 2025, the UN Human Rights Council releases a comprehensive report detailing systemic human rights abuses in Xinjiang, including evidence of forced labor in the solar panel industry. The US, EU, and 37 other countries have announced a coordinated sanctions package targeting Chinese officials and companies. Major brands are cutting ties with Xinjiang-linked suppliers. Xi Jinping must respond to this international pressure while maintaining China's stance on Xinjiang and protecting key industries.",
-
-            "It's May 5, 2026, and China has just successfully tested a quantum communication satellite, achieving unhackable long-distance communication. However, a consortium of Western intelligence agencies accuses China of using this technology to breach top-secret government networks. The US is threatening to cut off China's access to the global internet infrastructure. Tech companies worldwide are panicking about the implications for global data security. Xi Jinping must navigate this technological and diplomatic minefield."
+            "Xi Jinping faces increasing international pressure as tensions escalate in the South China Sea. The United States has conducted freedom of navigation operations near disputed islands, while Vietnam and the Philippines have strengthened their maritime claims.",
+            
+            "As the trade war with the United States intensifies, Xi Jinping must address the impact on China's economy. Recent tariffs have affected key industries, and there are concerns about potential decoupling of the two largest economies.",
+            
+            "Xi Jinping confronts a major environmental crisis as severe air pollution in Beijing reaches hazardous levels, causing public health concerns and international criticism of China's environmental policies.",
+            
+            "Following a series of protests in Hong Kong against the national security law, Xi Jinping must decide how to maintain control while managing international backlash and potential economic consequences.",
+            
+            "Xi Jinping faces a diplomatic challenge as Taiwan's pro-independence party wins a landslide election, potentially shifting cross-strait relations and testing China's 'One China' policy.",
+            
+            "In the wake of a major cybersecurity breach allegedly originating from China, targeting US government agencies, Xi Jinping must navigate accusations and potential sanctions while maintaining China's technological advancement goals.",
+            
+            "As the Belt and Road Initiative faces criticism for creating 'debt traps' in developing countries, Xi Jinping must address concerns and potentially restructure the program to maintain international support.",
+            
+            "Xi Jinping grapples with the aftermath of a severe economic downturn, with GDP growth falling to its lowest level in decades, raising questions about the sustainability of China's economic model.",
+            
+            "Following reports of human rights abuses in Xinjiang, Xi Jinping faces international condemnation and potential economic sanctions, forcing a reconsideration of policies in the region.",
+            
+            "As artificial intelligence and 5G technologies advance, Xi Jinping must balance China's ambitions for technological supremacy with growing global concerns about data privacy and security.",
+            
+            "In response to a major natural disaster in central China, Xi Jinping must coordinate large-scale relief efforts while addressing public criticism of the government's disaster preparedness and response.",
+            
+            "Xi Jinping confronts a diplomatic crisis as a border dispute with India in the Himalayan region escalates into military skirmishes, threatening regional stability and China's relationships in South Asia.",
+            
+            "As China's aging population and declining birth rate threaten long-term economic growth, Xi Jinping must consider significant reforms to social policies, including the potential abolition of remaining birth restrictions.",
+            
+            "Xi Jinping faces a challenge to China's energy security as global oil prices spike due to conflicts in the Middle East, forcing a reconsideration of China's energy mix and foreign policy in the region.",
+            
+            "In the face of a global pandemic originating within China's borders, Xi Jinping must manage both the domestic health crisis and international relations, as countries implement travel bans and demand transparency."
         ]
 
     def generate_prompt(self):
         """
-        Generate a highly detailed and specific prompt about a situation Xi Jinping faces.
+        Generate a detailed random prompt about a situation Xi Jinping faces.
         
         Returns:
-            str: A randomly selected, extremely detailed prompt based on specific scenarios.
+            str: A randomly selected, detailed prompt based on real-world events.
         """
         return random.choice(self.situations)
 
-class SUPERTMetric:
+class LLMJudge:
     """
-    Implements a simplified version of the SUPERT metric to evaluate text quality.
-    
-    The SUPERT score ranges from 0 to 1, where higher scores indicate better quality.
-    A good SUPERT score would typically be above 0.6, with scores above 0.8 being excellent.
+    Uses OpenAI's GPT model to evaluate the quality of generated text.
     """
     def __init__(self):
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-        self.model = BertModel.from_pretrained('bert-base-uncased')
+        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
-    def calculate_score(self, reference, hypothesis):
+    def evaluate_text(self, prompt, generated_text):
         """
-        Calculate the SUPERT score for a given reference and hypothesis.
+        Evaluate the generated text using OpenAI's GPT model.
         
         Args:
-            reference (str): The input prompt or reference text.
-            hypothesis (str): The generated text to be evaluated.
+            prompt (str): The input prompt or reference text.
+            generated_text (str): The generated text to be evaluated.
         
         Returns:
-            float: The SUPERT score, ranging from 0 to 1.
+            dict: A dictionary containing the score and reasoning.
         """
-        # Tokenize and encode the sentences
-        ref_encoding = self.tokenizer(reference, return_tensors='pt', padding=True, truncation=True)
-        hyp_encoding = self.tokenizer(hypothesis, return_tensors='pt', padding=True, truncation=True)
+        evaluation_prompt = f"""
+        As an expert in political science and international relations, your task is to evaluate the following response from Xi Jinping to a given situation. Rate the response on a scale of 1 to 10, where 1 is poor and 10 is excellent. Consider factors such as strategic thinking, diplomatic nuance, and alignment with China's interests.
 
-        # Get BERT embeddings
-        with torch.no_grad():
-            ref_outputs = self.model(**ref_encoding)
-            hyp_outputs = self.model(**hyp_encoding)
+        Situation: {prompt}
 
-        ref_embeddings = ref_outputs.last_hidden_state.mean(dim=1)
-        hyp_embeddings = hyp_outputs.last_hidden_state.mean(dim=1)
+        Xi Jinping's response: {generated_text}
 
-        # Calculate cosine similarity
-        similarity = cosine_similarity(ref_embeddings, hyp_embeddings)[0][0]
-
-        # Calculate originality score (higher similarity means lower originality)
-        originality_score = 1 - similarity
-
-        # Calculate insightfulness
-        insight_score = self.calculate_insight_score(hypothesis)
-
-        # Combine scores (equal weights for originality and insightfulness)
-        final_score = 0.5 * originality_score + 0.5 * insight_score
-
-        return final_score
-
-    def calculate_insight_score(self, text):
+        Provide your evaluation in the following JSON format:
+        {{
+            "score": <score between 1 and 10>,
+            "reasoning": "<brief explanation for the score>"
+        }}
         """
-        Calculate the insightfulness score based on text complexity and uniqueness.
-        
-        Args:
-            text (str): The text to be evaluated.
-        
-        Returns:
-            float: The insightfulness score, ranging from 0 to 1.
-        """
-        sentences = sent_tokenize(text)
-        word_count = len(text.split())
-        unique_words = len(set(text.lower().split()))
-        avg_sentence_length = word_count / len(sentences)
-        
-        # Calculate lexical diversity
-        lexical_diversity = unique_words / word_count
 
-        # Calculate average word complexity (using word length as a simple proxy)
-        avg_word_complexity = sum(len(word) for word in text.split()) / word_count
+        response = self.client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are an expert political analyst tasked with evaluating responses from world leaders."},
+                {"role": "user", "content": evaluation_prompt}
+            ],
+            functions = [
+                {
+                    "name": "evaluate_response",
+                    "description": "Evaluate the response from Xi Jinping on a scale of 1 to 10",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "score": {
+                                "type": "integer",
+                                "description": "The score of the response"
+                            },  
+                            "reasoning": {
+                                "type": "string",
+                                "description": "The reasoning for the score"
+                            }
+                        },
+                        "required": ["score", "reasoning"]
+                    }
+                }
+            ],
+            function_call={'name': 'evaluate_response'},
+            temperature=0.7,
+            max_tokens=150
+        )
 
-        # Combine factors (adjustable weights)
-        insight_score = (0.4 * lexical_diversity + 0.3 * avg_sentence_length / 20 + 0.3 * avg_word_complexity / 10)
+        response_message = response.choices[0].message
 
-        return min(insight_score, 1.0)  # Cap the score at 1.0
+        if response_message.function_call:
+            function_args = json.loads(response_message.function_call.arguments)
+            return function_args
+        else:
+            raise ValueError("No function call found in the response")
 
 class InferenceQualityTester:
     """
-    Tests the quality of the inference service output using the SUPERT metric.
+    Tests the quality of the inference service output using the LLM Judge.
     """
     def __init__(self, auth_key):
         self.inference_service = InferenceService(auth_key)
         self.prompt_generator = RandomPromptGenerator()
-        self.supert_metric = SUPERTMetric()
+        self.llm_judge = LLMJudge()
 
     def run_test(self, num_tests=10):
         """
@@ -140,50 +139,24 @@ class InferenceQualityTester:
             num_tests (int): The number of tests to run. Defaults to 10.
         
         Returns:
-            float: The average SUPERT score across all tests.
-        
-        Interpretation of results:
-        - 0.0 - 0.4: Poor quality, lacks originality and insight
-        - 0.4 - 0.6: Fair quality, some originality but room for improvement
-        - 0.6 - 0.8: Good quality, shows originality and insight
-        - 0.8 - 1.0: Excellent quality, highly original and insightful
+            float: The average score across all tests.
         """
         total_score = 0
         for i in range(num_tests):
             prompt = self.prompt_generator.generate_prompt()
             generated_text = self.inference_service.generate_text(prompt)
-            score = self.supert_metric.calculate_score(prompt, generated_text)
+            evaluation = self.llm_judge.evaluate_text(prompt, generated_text)
+            score = evaluation['score']
             total_score += score
             print(f"Test {i+1}:")
             print(f"Prompt: {prompt}")
             print(f"Generated text: {generated_text}")
-            print(f"SUPERT score: {score:.4f}")
-            print(f"Quality: {self.interpret_score(score)}\n")
+            print(f"Score: {score}/10")
+            print(f"Reasoning: {evaluation['reasoning']}\n")
 
         average_score = total_score / num_tests
-        print(f"Average SUPERT score: {average_score:.4f}")
-        print(f"Overall quality: {self.interpret_score(average_score)}")
+        print(f"Average score: {average_score:.2f}/10")
         return average_score
-
-    @staticmethod
-    def interpret_score(score):
-        """
-        Interpret the SUPERT score and provide a qualitative assessment.
-        
-        Args:
-            score (float): The SUPERT score to interpret.
-        
-        Returns:
-            str: A qualitative assessment of the score.
-        """
-        if score < 0.4:
-            return "Poor"
-        elif score < 0.6:
-            return "Fair"
-        elif score < 0.8:
-            return "Good"
-        else:
-            return "Excellent"
 
 if __name__ == "__main__":
     tester = InferenceQualityTester(settings.AUTH_KEY)
