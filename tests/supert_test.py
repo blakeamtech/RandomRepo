@@ -73,9 +73,17 @@ class LLMJudge:
         evaluation_prompt = f"""
         As an expert in political science and international relations, your task is to evaluate the following response from Xi Jinping to a given situation. Rate the response on three criteria:
 
-        1. Originality (1-10): How unique and creative is the response? Does it offer novel ideas or approaches?
-        2. Insightfulness (1-10): Does the response provide actionable advice or deep understanding beyond just summarizing the prompt? Does it present unique perspectives or strategies?
+        1. Originality (1-10): Does the response avoid summarizing the prompt and add new information or actions?
+           - 1 means it completely summarizes the prompt without adding anything new.
+           - 10 means it adds entirely new information or actions not mentioned in the prompt.
+
+        2. Insightfulness (1-10): How specific and detailed are the steps or actions proposed in the response?
+           - 1 means the steps are extremely vague or general.
+           - 10 means the steps are highly specific and detailed.
+
         3. Accuracy (1-10): How well does the response align with known facts about China's policies, Xi Jinping's leadership style, and geopolitical realities?
+           - 1 means it's completely inaccurate or unrealistic.
+           - 10 means it's highly accurate and realistic given the current geopolitical context.
 
         Situation: {prompt}
 
@@ -124,9 +132,7 @@ class LLMJudge:
                     }
                 }
             ],
-            function_call={'name': 'evaluate_response'},
-            temperature=0.7,
-            max_tokens=250
+            function_call={'name': 'evaluate_response'}
         )
 
         response_message = response.choices[0].message
