@@ -68,10 +68,14 @@ class LLMJudge:
             generated_text (str): The generated text to be evaluated.
         
         Returns:
-            dict: A dictionary containing the score and reasoning.
+            dict: A dictionary containing the scores and reasoning.
         """
         evaluation_prompt = f"""
-        As an expert in political science and international relations, your task is to evaluate the following response from Xi Jinping to a given situation. Rate the response on a scale of 1 to 10, where 1 is poor and 10 is excellent. Consider factors such as strategic thinking, diplomatic nuance, and alignment with China's interests.
+        As an expert in political science and international relations, your task is to evaluate the following response from Xi Jinping to a given situation. Rate the response on three criteria:
+
+        1. Originality (1-10): How unique and creative is the response? Does it offer novel ideas or approaches?
+        2. Insightfulness (1-10): Does the response provide actionable advice or deep understanding beyond just summarizing the prompt? Does it present unique perspectives or strategies?
+        3. Accuracy (1-10): How well does the response align with known facts about China's policies, Xi Jinping's leadership style, and geopolitical realities?
 
         Situation: {prompt}
 
@@ -79,13 +83,15 @@ class LLMJudge:
 
         Provide your evaluation in the following JSON format:
         {{
-            "score": <score between 1 and 10>,
-            "reasoning": "<brief explanation for the score>"
+            "originality_score": <score between 1 and 10>,
+            "insightfulness_score": <score between 1 and 10>,
+            "accuracy_score": <score between 1 and 10>,
+            "reasoning": "<brief explanation for each score>"
         }}
         """
 
         response = self.client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are an expert political analyst tasked with evaluating responses from world leaders."},
                 {"role": "user", "content": evaluation_prompt}
@@ -93,26 +99,34 @@ class LLMJudge:
             functions = [
                 {
                     "name": "evaluate_response",
-                    "description": "Evaluate the response from Xi Jinping on a scale of 1 to 10",
+                    "description": "Evaluate the response from Xi Jinping on originality, insightfulness, and accuracy",
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "score": {
+                            "originality_score": {
                                 "type": "integer",
-                                "description": "The score of the response"
-                            },  
+                                "description": "The originality score of the response (1-10)"
+                            },
+                            "insightfulness_score": {
+                                "type": "integer",
+                                "description": "The insightfulness score of the response (1-10)"
+                            },
+                            "accuracy_score": {
+                                "type": "integer",
+                                "description": "The accuracy score of the response (1-10)"
+                            },
                             "reasoning": {
                                 "type": "string",
-                                "description": "The reasoning for the score"
+                                "description": "The reasoning for each score"
                             }
                         },
-                        "required": ["score", "reasoning"]
+                        "required": ["originality_score", "insightfulness_score", "accuracy_score", "reasoning"]
                     }
                 }
             ],
             function_call={'name': 'evaluate_response'},
             temperature=0.7,
-            max_tokens=150
+            max_tokens=250
         )
 
         response_message = response.choices[0].message
@@ -140,39 +154,47 @@ class InferenceQualityTester:
             num_tests (int): The number of tests to run. Defaults to 10.
         
         Returns:
-            float: The average score across all tests.
+            dict: A dictionary containing average scores for each criterion.
         """
-        total_score = 0
+        total_scores = {"originality": 0, "insightfulness": 0, "accuracy": 0}
         results = []
 
         for i in range(num_tests):
             prompt = self.prompt_generator.generate_prompt()
             generated_text = self.inference_service.generate_text(prompt)
             evaluation = self.llm_judge.evaluate_text(prompt, generated_text)
-            score = evaluation['score']
-            total_score += score
+            
+            total_scores["originality"] += evaluation['originality_score']
+            total_scores["insightfulness"] += evaluation['insightfulness_score']
+            total_scores["accuracy"] += evaluation['accuracy_score']
 
             results.append({
                 'prompt': prompt,
                 'model_response': generated_text,
-                'model_rating': score,
-                'model_reasoning': evaluation['reasoning']
+                'originality_score': evaluation['originality_score'],
+                'insightfulness_score': evaluation['insightfulness_score'],
+                'accuracy_score': evaluation['accuracy_score'],
+                'reasoning': evaluation['reasoning']
             })
 
             print(f"Test {i+1}:")
             print(f"Prompt: {prompt}")
             print(f"Generated text: {generated_text}")
-            print(f"Score: {score}/10")
+            print(f"Originality Score: {evaluation['originality_score']}/10")
+            print(f"Insightfulness Score: {evaluation['insightfulness_score']}/10")
+            print(f"Accuracy Score: {evaluation['accuracy_score']}/10")
             print(f"Reasoning: {evaluation['reasoning']}\n")
 
-        average_score = total_score / num_tests
-        print(f"Average score: {average_score:.2f}/10")
+        average_scores = {k: v / num_tests for k, v in total_scores.items()}
+        print(f"Average scores:")
+        for criterion, score in average_scores.items():
+            print(f"{criterion.capitalize()}: {score:.2f}/10")
 
         # Write results to CSV
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"inference_quality_results_{timestamp}.csv"
         with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
-            fieldnames = ['prompt', 'model_response', 'model_rating', 'model_reasoning']
+            fieldnames = ['prompt', 'model_response', 'originality_score', 'insightfulness_score', 'accuracy_score', 'reasoning']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             
             writer.writeheader()
@@ -181,7 +203,7 @@ class InferenceQualityTester:
 
         print(f"Results have been written to {filename}")
 
-        return average_score
+        return average_scores
 
 if __name__ == "__main__":
     tester = InferenceQualityTester(settings.AUTH_KEY)
